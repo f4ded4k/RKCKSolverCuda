@@ -43,8 +43,8 @@ void getParamValues(const std::string &filePath, OUT double *g) {
 int main() {
   // Get parameters and initial values into memory.
   double y0[NumODE * NumEq], g[NumODE * NumParam];
-  getInitialValues("params\\initial_vals.txt", y0);
-  getParamValues("params\\param_vals.txt", g);
+  getInitialValues("initial_vals.txt", y0);
+  getParamValues("param_vals.txt", g);
 
   // Define kernel launch parameters.
   int blockSize;
@@ -63,7 +63,7 @@ int main() {
   // Define time steps to save results at.
   double TimeSteps[NumTimeSteps];
   for (int i = 0; i < NumTimeSteps; ++i) {
-    TimeSteps[i] = (double)i / 10.0;
+    TimeSteps[i] = i;
   }
 
   // Storage for all Y values
@@ -109,7 +109,7 @@ int main() {
   PRINTErr(cudaFree(deviceG), logOfs);
 
   for (int i = 0; i < NumTimeSteps; ++i)
-    std::cout << y[0][0][i] << std::endl;
+    std::cout << y[0][2][i] << std::endl;
 
   logOfs.close();
   return 0;

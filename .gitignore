@@ -1,1 +1,5 @@
 .vscode/
+vc140.pdb
+log.txt
+driver.pdb
+build/

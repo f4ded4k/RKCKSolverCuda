@@ -1,17 +1,33 @@
 // source : https://arxiv.org/pdf/1611.02274.pdf
 
-#include <system_params.h>
 #include <solver.h>
+#include <stdio.h>
+#include <system_params.h>
+
+// Utility function for ODE system.
+__device__ double I(const double t) {
+  if (t < 50.0) {
+    return 0.01;
+  } else {
+    return 1.0;
+  }
+}
 
 // F(t,y,g) = h*f(t,y,g) of Y' = f(t,y,g).
 // t,y,g : Parameters required to compute f(t,y,g).
 // h : Step size.
-// F : Returns h*f(t,y,g)
+// F : Returns h*f(t,y,g).
 __device__ void FuncF(const double t, const double *y, const double *g,
                       const double h, OUT double *F) {
-  F[0] = h * (g[0] * (y[1] - y[0]));
-  F[1] = h * (y[0] * (g[1] - y[2]) - y[1]);
-  F[2] = h * (y[0] * y[1] - g[2] * y[2]);
+  double A = y[0], B = y[1], C = y[2];
+  double K_IA = g[0], K_FAA_ = g[1], K_FBB_ = g[2], K_CB = g[3], K_AC = g[4],
+         K_BC_ = g[5], F_A = g[6], F_B = g[7];
+  F[0] = h * (I(t) * K_IA * (1 - A) / (1 - A + K_IA) -
+              F_A * K_FAA_ * A / (A + K_FAA_));
+  F[1] = h * (-F_B * K_FBB_ * B / (B + K_FBB_) +
+              C * K_CB * (1 - B) / (1 - B + K_CB));
+  F[2] =
+      h * (A * K_AC * (1 - C) / (1 - C + K_AC) - B * K_BC_ * C / (C + K_BC_));
 }
 
 // Computes y values for a single timestep.
@@ -75,7 +91,7 @@ __device__ void solverStep(const double t, const double *y, const double *g,
   double k6[NumEq];
   for (int i = 0; i < NumEq; ++i) {
     yTemp[i] = y[i] + b5[0] * k1[i] + b5[1] * k2[i] + b5[2] * k3[i] +
-            b5[3] * k4[i] + b5[4] * k5[i];
+               b5[3] * k4[i] + b5[4] * k5[i];
   }
   FuncF(t + a[5] * h, yTemp, g, h, k6);
 
@@ -85,7 +101,7 @@ __device__ void solverStep(const double t, const double *y, const double *g,
               c[4] * k5[i] + c[5] * k6[i];
     yErr[i] =
         fabs(yEnd[i] - (y[i] + cs[0] * k1[i] + cs[1] * k2[i] + cs[2] * k3[i] +
-                     cs[3] * k4[i] + cs[4] * k5[i] + cs[5] * k6[i]));
+                        cs[3] * k4[i] + cs[4] * k5[i] + cs[5] * k6[i]));
   }
 }
 
@@ -155,7 +171,7 @@ __device__ void solverDriver(const double t0, const double t1, const double *g,
 __global__ void solverMain(const double t0, const double t1,
                            const double *gGlobal, OUT double *yGlobal) {
   // Compute index of ODE system to be solved by this thread.
-  int currNumODE = threadIdx.x + blockDim.x * blockIdx.x;
+  const int currNumODE = threadIdx.x + (blockDim.x * blockIdx.x);
   if (currNumODE < NumODE) {
     // Allocate and populate local arrays for g & y.
     double gLocal[NumParam], yLocal[NumEq];
